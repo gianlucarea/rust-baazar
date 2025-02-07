@@ -4,5 +4,10 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
+chrono = "0.4.39"
 paho-mqtt = "0.13.0"
 rand = "0.9.0"
+serde = {version = "1.0.217", features = ["derive"]}
+serde_json = "1.0.138"
+tokio = {version = "1.43.0", features = ["full"]} 
+tokio-stream = "0.1.17"
