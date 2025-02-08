@@ -9,6 +9,7 @@ byte bazar
 ├── rust-lang 🦀
 │   ├── grrs 🧨
 │   ├── runestone 🗿
+│   ├── archimedes-mq 🛀
 ```
 ## [Rust 🦀](./rust-lang) 
 
@@ -18,5 +19,8 @@ This Rust CLI project called Grrs covers ownership, borrowing, `fs::File`, and `
 ### [Runestone 🗿](./rust-lang/runestone)
 This project, Runestone, is a minimal Rust web server built with Axum and Tokio for asynchronous programming with CRUD operations. It integrates PostgreSQL. 
 
+### [Archimedes MQ 🛀](./rust-lang/archimedes-mq)
+Archimedes MQ is an async Rust IoT data logger using Tokio and MQTT, simulating sensors and storing real-time readings in JSON.
+
 ---
-Happy coding!
+Happy coding 🚀!
