@@ -1,13 +1,16 @@
 use std::{thread, time::Duration};
 
-use paho_mqtt as mqtt;
+use paho_mqtt::{self as mqtt};
 use rand::Rng;
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 use tokio::{fs::OpenOptions, io::AsyncWriteExt, task, time};
 
 const BROKER: &str = "mqtt://localhost:1883";
 const CLIEND_ID: &str = "archimedes-mq";
 const TOPIC: &str = "sensor/data";
+const TIME_INTERVAL: u64 = 10;
+const MAIN_THREAD_SLEEP: u64 = 10;
+
 
 #[tokio::main]
 async fn main() {
@@ -28,34 +31,57 @@ async fn main() {
     println!("Connected to MQTT broker!");
 
 
-    let mqtt_client = client.clone();
+    let mqtt_client_pub = client.clone();
+    let mqtt_client_sub = client.clone();
+
     task::spawn(async move {
-        let mut interval = time::interval(Duration::from_secs(30));
+        let mut interval = time::interval(Duration::from_secs(TIME_INTERVAL));
         loop {
             interval.tick().await;
             let sensor_data = generate_sensor_data();
             let payload = serde_json::to_string(&sensor_data).unwrap();
             let msg = mqtt::Message::new(TOPIC, payload.clone(), mqtt::QOS_1);
-            if let Err(e) = mqtt_client.publish(msg){
+            if let Err(e) = mqtt_client_pub.publish(msg){
                 eprintln!("🧨 Failed to publish: {}", e);
             } else {
                 println!("📡 Published: {}", payload);
             }
-            let json = serde_json::to_string(&sensor_data).expect("Failed to serialize data");
-            let json = json + ",\n";
-            let mut file = OpenOptions::new()
-                .create(true)
-                .append(true)
-                .open("sensor_log.txt").await.expect("cannot open a file");
-        
-            file.write(json.as_bytes()).await.expect("Write Failed");
+        }
+    });
+
+    //Sub and write to file
+    task::spawn(async move {
+        loop {
+            mqtt_client_sub.subscribe(TOPIC, mqtt::QOS_1).expect("Failed to subscibe to topic");
+
+            for msg in mqtt_client_sub.start_consuming(){
+                if let Some(msg) = msg {
+                    let payload = msg.payload_str();
+                    println!("📡 Subscriber received: {}", payload);
+                    write_to_file(payload.to_string()).await;
+                } else {
+                    println!("🧨  Subscriber disconnected or no message received");
+                    break;
+                }
+            }
         }
     });
 
     loop {
-        thread::sleep(Duration::from_secs(10));
+        thread::sleep(Duration::from_secs(MAIN_THREAD_SLEEP));
     }
 }
+
+async fn write_to_file(payload: String)   {
+    let json = payload + ",\n";
+    let mut file = OpenOptions::new()
+    .create(true)
+    .append(true)
+    .open("sensor_log.txt").await.expect("cannot open a file");
+
+    file.write(json.as_bytes()).await.expect("Write Failed");
+ }
+
 
 fn generate_sensor_data() -> SensorData {
     let mut rng = rand::rng();
