@@ -22,5 +22,8 @@ This project, Runestone, is a minimal Rust web server built with Axum and Tokio 
 ### [Archimedes MQ 🛀](./rust-lang/archimedes-mq)
 Archimedes MQ is an async Rust IoT data logger using Tokio and MQTT, simulating sensors and storing real-time readings in JSON.
 
+### [Byzantine Vault 🏛️](./rust-lang/byzantine-vault/)
+ByzantineVault is a secure file storage system. It combines encryption (AES-GCM), JWT authentication, and PostgreSQL-backed secure access control
+
 ---
 Happy coding 🚀!
