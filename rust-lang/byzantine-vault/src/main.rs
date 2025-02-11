@@ -5,6 +5,7 @@ mod routes;
 mod models;
 mod handlers;
 mod token;
+mod middleware;
 
 #[tokio::main]
 async fn main() {
