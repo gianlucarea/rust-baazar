@@ -2,6 +2,9 @@ use sqlx::postgres::PgPoolOptions;
 use tokio::net::TcpListener;
 
 mod routes;
+mod models;
+mod handlers;
+mod token;
 
 #[tokio::main]
 async fn main() {

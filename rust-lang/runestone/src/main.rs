@@ -10,7 +10,7 @@ async fn main() {
 
     //Enviroment variables
     let server_address = std::env::var("SERVER_ADDRESS").unwrap_or("127.0.0.1:3000".to_owned());
-    let databse_url = std::env::var("DATABASE_URL").expect("DATABASE_URL not found in the env file");
+    let databse_url: String = std::env::var("DATABASE_URL").expect("DATABASE_URL not found in the env file");
 
     //Database Pool
     let database_pool = PgPoolOptions::new()
