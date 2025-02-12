@@ -1,10 +1,17 @@
-use axum::{extract::State, http::StatusCode, Json};
+use std::env;
+
+use aes_gcm::aead::Aead;
+use axum::extract::Path;
+use axum::{extract::{State,Multipart}, http::StatusCode, Json};
+
 use bcrypt::{hash, verify};
+use chrono::Utc;
 use serde_json::json;
 use sqlx::PgPool;
-use chrono::Utc;
+use uuid::Uuid;
+use aes_gcm::{Aes256Gcm, Key, KeyInit, Nonce};
 
-use crate::models::{User,RegisterResponse};
+use crate::models::{FileResponse, RegisterResponse, User};
 use crate::token::generate_token;
 
 pub async fn register_user(
@@ -57,4 +64,62 @@ pub async fn login_user(
         }
         _ => Err(StatusCode::UNAUTHORIZED),
     }
+}
+
+pub async fn create_file(pool:  State<PgPool>, 
+    Path(owner_id): Path<Uuid>, 
+    mut multipart: Multipart) 
+    -> Result<(StatusCode,String),(StatusCode,String)> {
+
+    match multipart.next_field().await {
+        Ok(Some(field)) => {
+            let filename = field.name().unwrap().to_string();
+            let text: String = field.text().await.unwrap().to_owned();
+            let text: &[u8] = text.as_bytes(); 
+            return upload_file(pool,filename,text,owner_id).await;      
+        }
+        Ok(None) => {
+            return Err((
+                StatusCode::INTERNAL_SERVER_ERROR,
+                json!({"success":false, "message": "No file found!"}).to_string(),
+                ))
+        }
+        Err(e) => {
+            return Err((  
+                StatusCode::INTERNAL_SERVER_ERROR,
+                json!({"success":false, "message":e.to_string()}).to_string(),
+            ))
+        }
+    }
+    
+
+}
+
+async fn upload_file(State(pool): State<PgPool>, filename: String ,text: &[u8], owner_id: Uuid)-> Result<(StatusCode,String),(StatusCode,String)>{
+    let key = env::var("ENCRYPTION_KEY").expect("ENCRYPTION_KEY not set in .env");
+    let nonce = env::var("NONCE").expect("NONCE not set in .env");
+
+    let key = Key::<Aes256Gcm>::from_slice(key.as_bytes());
+    let cipher = Aes256Gcm::new(key);
+    let nonce = Nonce::from_slice(nonce.as_bytes());
+    let encrypted_data = cipher.encrypt(nonce, text).expect("Encryption failed");
+     
+    let data  =sqlx::query_as!(FileResponse,
+        "INSERT INTO files (owner_id, filename, version,encrypted_data) VALUES ($1, $2, $3, $4) RETURNING id",
+        owner_id, 
+        filename,
+        0,
+        encrypted_data
+    ).fetch_one(&pool)
+    .await
+    .map_err(|e| {
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            json!({"success":false, "message":e.to_string()}).to_string(),
+        )
+    })?;
+    Ok((
+        StatusCode::OK,
+        json!({"success":true, "message": data }).to_string(),
+    )) 
 }
