@@ -110,6 +110,18 @@ pub async fn create_file(pool:  State<PgPool>,
     }
 }
 
+async fn get_latest_file_version(State(pool): State<PgPool>, filename: &String , owner_id: Uuid)-> i32{
+    let data  =sqlx::query_as!(FileExist,
+        "SELECT version FROM files WHERE filename=$1 AND owner_id=$2 ORDER BY version DESC",filename,owner_id, 
+    ).fetch_one(&pool)
+    .await;
+    if data.is_ok() {
+        data.unwrap().version
+    } else {
+        -1
+    }
+}
+
 async fn upload_file(State(pool): State<PgPool>, filename: String ,text: &[u8], owner_id: Uuid, version: i32)-> Result<(StatusCode,String),(StatusCode,String)>{
     let (cipher,nonce) = get_encryption_var();
     let encrypted_data = cipher.encrypt(&nonce, text).expect("Encryption failed");
@@ -189,16 +201,42 @@ pub async fn download_file_by_version(State(pool): State<PgPool>,Path((owner_id,
     ))
 }
 
+pub async fn delete_file(
+    State(pg_pool): State<PgPool>,Path((owner_id,filename)): Path<(Uuid,String)>)
+    -> Result<(StatusCode,String),(StatusCode,String)> {
 
-async fn get_latest_file_version(State(pool): State<PgPool>, filename: &String , owner_id: Uuid)-> i32{
-    let data  =sqlx::query_as!(FileExist,
-        "SELECT version FROM files WHERE filename=$1 AND owner_id=$2 ORDER BY version DESC",filename,owner_id, 
-    ).fetch_one(&pool)
-    .await;
-    if data.is_ok() {
-        data.unwrap().version
-    } else {
-        -1
-    }
+        sqlx::query!("DELETE FROM files WHERE owner_id = $1 AND filename = $2", owner_id, filename)
+        .execute(&pg_pool)
+        .await
+        .map_err(|e| {
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                json!({"success": false, "message": e.to_string()}).to_string(),
+            )
+        })?;
+
+        Ok((
+            StatusCode::OK,
+            json!({"success": true}).to_string(),
+        ))
 }
 
+pub async fn delete_file_by_version(
+    State(pg_pool): State<PgPool>,Path((owner_id,filename,version)): Path<(Uuid,String,i32)>)
+    -> Result<(StatusCode,String),(StatusCode,String)> {
+
+        sqlx::query!("DELETE FROM files WHERE owner_id = $1 AND filename = $2 AND version = $3", owner_id, filename,version)
+        .execute(&pg_pool)
+        .await
+        .map_err(|e| {
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                json!({"success": false, "message": e.to_string()}).to_string(),
+            )
+        })?;
+
+        Ok((
+            StatusCode::OK,
+            json!({"success": true}).to_string(),
+        ))
+}
