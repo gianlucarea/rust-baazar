@@ -1,5 +1,6 @@
 use std::env;
 
+use aes_gcm::aead::consts::U12;
 use aes_gcm::aead::Aead;
 use axum::extract::Path;
 use axum::{extract::{State,Multipart}, http::StatusCode, Json};
@@ -9,9 +10,9 @@ use chrono::Utc;
 use serde_json::json;
 use sqlx::PgPool;
 use uuid::Uuid;
-use aes_gcm::{Aes256Gcm, Key, KeyInit, Nonce};
+use aes_gcm::{Aes256Gcm, Key, KeyInit, Nonce}; 
 
-use crate::models::{FileExist, FileResponse, RegisterResponse, User};
+use crate::models::{File, FileExist, FileResponse, PrintFile, RegisterResponse, User};
 use crate::token::generate_token;
 
 pub async fn register_user(
@@ -76,8 +77,7 @@ pub async fn create_file(pool:  State<PgPool>,
             let filename = field.name().unwrap().to_string();
             let text: String = field.text().await.unwrap().to_owned();
             let text: &[u8] = text.as_bytes(); 
-            let version = check_if_file_alredy_in_memory(pool.clone(),&filename,owner_id).await;
-            println!("{}",version);
+            let version = get_latest_file_version(pool.clone(),&filename,owner_id).await;
             if version != -1 {
                 return upload_file(pool,filename,text,owner_id,version + 1).await; 
             } else {
@@ -99,9 +99,37 @@ pub async fn create_file(pool:  State<PgPool>,
     }
 }
 
-async fn check_if_file_alredy_in_memory(State(pool): State<PgPool>, filename: &String , owner_id: Uuid)-> i32{
+pub async fn download_file(State(pool): State<PgPool>,Path((owner_id,filename)): Path<(Uuid,String)>)-> Result<(StatusCode,String),(StatusCode,String)>{
+    let file = sqlx::query_as!(File,
+    "SELECT * FROM files WHERE filename = $1 AND owner_id = $2 ORDER BY version DESC LIMIT 1", 
+    filename, 
+    owner_id
+    ).fetch_one(&pool)
+    .await
+    .map_err(|e| {
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            json!({"success":false, "message":e.to_string()}).to_string(),
+        )
+    })?;
+
+    let (cipher,nonce) = get_encryption_var();
+
+    let encrypted_data = file.encrypted_data;
+    let decrypted_file = cipher.decrypt(&nonce,encrypted_data.as_ref()).expect("Decryption Fail");
+    let content : String = String::from_utf8(decrypted_file).unwrap();
+    let file: PrintFile = PrintFile::new(file.id, filename, file.version, content);
+
+    Ok((
+        StatusCode::OK,
+        json!({"success":true, "file": file }).to_string(),
+    ))
+}
+
+
+async fn get_latest_file_version(State(pool): State<PgPool>, filename: &String , owner_id: Uuid)-> i32{
     let data  =sqlx::query_as!(FileExist,
-        "SELECT version FROM files WHERE filename=$1 AND owner_id=$2 ORDER BY created_at DESC",filename,owner_id, 
+        "SELECT version FROM files WHERE filename=$1 AND owner_id=$2 ORDER BY version DESC",filename,owner_id, 
     ).fetch_one(&pool)
     .await;
     if data.is_ok() {
@@ -112,13 +140,8 @@ async fn check_if_file_alredy_in_memory(State(pool): State<PgPool>, filename: &S
 }
 
 async fn upload_file(State(pool): State<PgPool>, filename: String ,text: &[u8], owner_id: Uuid, version: i32)-> Result<(StatusCode,String),(StatusCode,String)>{
-    let key = env::var("ENCRYPTION_KEY").expect("ENCRYPTION_KEY not set in .env");
-    let nonce = env::var("NONCE").expect("NONCE not set in .env");
-
-    let key = Key::<Aes256Gcm>::from_slice(key.as_bytes());
-    let cipher = Aes256Gcm::new(key);
-    let nonce = Nonce::from_slice(nonce.as_bytes());
-    let encrypted_data = cipher.encrypt(nonce, text).expect("Encryption failed");
+    let (cipher,nonce) = get_encryption_var();
+    let encrypted_data = cipher.encrypt(&nonce, text).expect("Encryption failed");
      
     let data  =sqlx::query_as!(FileResponse,
         "INSERT INTO files (owner_id, filename, version,encrypted_data) VALUES ($1, $2, $3, $4) RETURNING id",
@@ -140,3 +163,13 @@ async fn upload_file(State(pool): State<PgPool>, filename: String ,text: &[u8], 
     )) 
 }
 
+fn get_encryption_var() -> (Aes256Gcm, Nonce<U12>) {
+    let key_str = env::var("ENCRYPTION_KEY").expect("ENCRYPTION_KEY not set in .env");
+    let nonce_str = env::var("NONCE").expect("NONCE not set in .env");
+
+    let key = Key::<Aes256Gcm>::from_slice(key_str.as_bytes());
+    let cipher = Aes256Gcm::new(key);
+    let nonce = Nonce::from_slice(nonce_str.as_bytes());
+
+    (cipher, *nonce)
+}
