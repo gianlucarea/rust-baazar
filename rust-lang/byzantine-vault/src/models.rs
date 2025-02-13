@@ -25,3 +25,8 @@ pub struct Claims {
 pub struct FileResponse{
     pub id: Uuid,
 }
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct FileExist{
+    pub version: i32,
+}

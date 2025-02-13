@@ -11,7 +11,7 @@ use sqlx::PgPool;
 use uuid::Uuid;
 use aes_gcm::{Aes256Gcm, Key, KeyInit, Nonce};
 
-use crate::models::{FileResponse, RegisterResponse, User};
+use crate::models::{FileExist, FileResponse, RegisterResponse, User};
 use crate::token::generate_token;
 
 pub async fn register_user(
@@ -76,7 +76,13 @@ pub async fn create_file(pool:  State<PgPool>,
             let filename = field.name().unwrap().to_string();
             let text: String = field.text().await.unwrap().to_owned();
             let text: &[u8] = text.as_bytes(); 
-            return upload_file(pool,filename,text,owner_id).await;      
+            let version = check_if_file_alredy_in_memory(pool.clone(),&filename,owner_id).await;
+            println!("{}",version);
+            if version != -1 {
+                return upload_file(pool,filename,text,owner_id,version + 1).await; 
+            } else {
+                return upload_file(pool,filename,text,owner_id,0).await; 
+            }
         }
         Ok(None) => {
             return Err((
@@ -91,11 +97,21 @@ pub async fn create_file(pool:  State<PgPool>,
             ))
         }
     }
-    
-
 }
 
-async fn upload_file(State(pool): State<PgPool>, filename: String ,text: &[u8], owner_id: Uuid)-> Result<(StatusCode,String),(StatusCode,String)>{
+async fn check_if_file_alredy_in_memory(State(pool): State<PgPool>, filename: &String , owner_id: Uuid)-> i32{
+    let data  =sqlx::query_as!(FileExist,
+        "SELECT version FROM files WHERE filename=$1 AND owner_id=$2 ORDER BY created_at DESC",filename,owner_id, 
+    ).fetch_one(&pool)
+    .await;
+    if data.is_ok() {
+        data.unwrap().version
+    } else {
+        -1
+    }
+}
+
+async fn upload_file(State(pool): State<PgPool>, filename: String ,text: &[u8], owner_id: Uuid, version: i32)-> Result<(StatusCode,String),(StatusCode,String)>{
     let key = env::var("ENCRYPTION_KEY").expect("ENCRYPTION_KEY not set in .env");
     let nonce = env::var("NONCE").expect("NONCE not set in .env");
 
@@ -108,7 +124,7 @@ async fn upload_file(State(pool): State<PgPool>, filename: String ,text: &[u8], 
         "INSERT INTO files (owner_id, filename, version,encrypted_data) VALUES ($1, $2, $3, $4) RETURNING id",
         owner_id, 
         filename,
-        0,
+        version,
         encrypted_data
     ).fetch_one(&pool)
     .await
@@ -123,3 +139,4 @@ async fn upload_file(State(pool): State<PgPool>, filename: String ,text: &[u8], 
         json!({"success":true, "message": data }).to_string(),
     )) 
 }
+
