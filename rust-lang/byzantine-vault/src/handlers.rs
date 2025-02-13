@@ -67,6 +67,17 @@ pub async fn login_user(
     }
 }
 
+fn get_encryption_var() -> (Aes256Gcm, Nonce<U12>) {
+    let key_str = env::var("ENCRYPTION_KEY").expect("ENCRYPTION_KEY not set in .env");
+    let nonce_str = env::var("NONCE").expect("NONCE not set in .env");
+
+    let key = Key::<Aes256Gcm>::from_slice(key_str.as_bytes());
+    let cipher = Aes256Gcm::new(key);
+    let nonce = Nonce::from_slice(nonce_str.as_bytes());
+
+    (cipher, *nonce)
+}
+
 pub async fn create_file(pool:  State<PgPool>, 
     Path(owner_id): Path<Uuid>, 
     mut multipart: Multipart) 
@@ -97,6 +108,30 @@ pub async fn create_file(pool:  State<PgPool>,
             ))
         }
     }
+}
+
+async fn upload_file(State(pool): State<PgPool>, filename: String ,text: &[u8], owner_id: Uuid, version: i32)-> Result<(StatusCode,String),(StatusCode,String)>{
+    let (cipher,nonce) = get_encryption_var();
+    let encrypted_data = cipher.encrypt(&nonce, text).expect("Encryption failed");
+     
+    let data  =sqlx::query_as!(FileResponse,
+        "INSERT INTO files (owner_id, filename, version,encrypted_data) VALUES ($1, $2, $3, $4) RETURNING id",
+        owner_id, 
+        filename,
+        version,
+        encrypted_data
+    ).fetch_one(&pool)
+    .await
+    .map_err(|e| {
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            json!({"success":false, "message":e.to_string()}).to_string(),
+        )
+    })?;
+    Ok((
+        StatusCode::OK,
+        json!({"success":true, "message": data }).to_string(),
+    )) 
 }
 
 pub async fn download_file(State(pool): State<PgPool>,Path((owner_id,filename)): Path<(Uuid,String)>)-> Result<(StatusCode,String),(StatusCode,String)>{
@@ -167,37 +202,3 @@ async fn get_latest_file_version(State(pool): State<PgPool>, filename: &String ,
     }
 }
 
-async fn upload_file(State(pool): State<PgPool>, filename: String ,text: &[u8], owner_id: Uuid, version: i32)-> Result<(StatusCode,String),(StatusCode,String)>{
-    let (cipher,nonce) = get_encryption_var();
-    let encrypted_data = cipher.encrypt(&nonce, text).expect("Encryption failed");
-     
-    let data  =sqlx::query_as!(FileResponse,
-        "INSERT INTO files (owner_id, filename, version,encrypted_data) VALUES ($1, $2, $3, $4) RETURNING id",
-        owner_id, 
-        filename,
-        version,
-        encrypted_data
-    ).fetch_one(&pool)
-    .await
-    .map_err(|e| {
-        (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            json!({"success":false, "message":e.to_string()}).to_string(),
-        )
-    })?;
-    Ok((
-        StatusCode::OK,
-        json!({"success":true, "message": data }).to_string(),
-    )) 
-}
-
-fn get_encryption_var() -> (Aes256Gcm, Nonce<U12>) {
-    let key_str = env::var("ENCRYPTION_KEY").expect("ENCRYPTION_KEY not set in .env");
-    let nonce_str = env::var("NONCE").expect("NONCE not set in .env");
-
-    let key = Key::<Aes256Gcm>::from_slice(key_str.as_bytes());
-    let cipher = Aes256Gcm::new(key);
-    let nonce = Nonce::from_slice(nonce_str.as_bytes());
-
-    (cipher, *nonce)
-}
