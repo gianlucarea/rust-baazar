@@ -38,6 +38,8 @@ ByzantineVault is a secure file storage system. It combines encryption (AES-GCM)
 | GET        | `/auth/{owner_id}/files/{file_name}/version/{version}/`| Download file by version                           |
 | DELETE     | `/auth/{owner_id}/files/{file_name}/version/{version}/`| Delete file by version                             |
 
+### [Lionheart Armory 🦁](./byzantine-vault/)
+Lionhearth Armory is a secure armory api. JWT authentication, and PostgreSQL-backed secure access control and Redis Cache.
 ---
 
 ## **Project Updates**
