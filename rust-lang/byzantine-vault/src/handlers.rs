@@ -126,6 +126,34 @@ pub async fn download_file(State(pool): State<PgPool>,Path((owner_id,filename)):
     ))
 }
 
+pub async fn download_file_by_version(State(pool): State<PgPool>,Path((owner_id,filename, version)): Path<(Uuid,String,i32)>)-> Result<(StatusCode,String),(StatusCode,String)>{
+    let file = sqlx::query_as!(File,
+    "SELECT * FROM files WHERE filename = $1 AND owner_id = $2 and version = $3 ORDER BY version DESC LIMIT 1", 
+    filename, 
+    owner_id,
+    version
+    ).fetch_one(&pool)
+    .await
+    .map_err(|e| {
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            json!({"success":false, "message":e.to_string()}).to_string(),
+        )
+    })?;
+
+    let (cipher,nonce) = get_encryption_var();
+
+    let encrypted_data = file.encrypted_data;
+    let decrypted_file = cipher.decrypt(&nonce,encrypted_data.as_ref()).expect("Decryption Fail");
+    let content : String = String::from_utf8(decrypted_file).unwrap();
+    let file: PrintFile = PrintFile::new(file.id, filename, version, content);
+
+    Ok((
+        StatusCode::OK,
+        json!({"success":true, "file": file }).to_string(),
+    ))
+}
+
 
 async fn get_latest_file_version(State(pool): State<PgPool>, filename: &String , owner_id: Uuid)-> i32{
     let data  =sqlx::query_as!(FileExist,
