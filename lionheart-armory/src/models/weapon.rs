@@ -1,6 +1,17 @@
 use serde::{Deserialize, Serialize};
 use sqlx::types::BigDecimal;
 
+#[derive(Deserialize,Serialize)]
+pub struct Weapon{
+    pub id: i32,
+    pub name: String,
+    pub weight: BigDecimal,
+    pub origin: String,
+    pub first_use_year: Option<i32>,
+    pub type_id: i32,
+    pub material_id: i32,
+}
+
 #[derive(Deserialize)]
 pub struct CreateWeapon{
     pub name: String,
