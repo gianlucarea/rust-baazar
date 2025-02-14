@@ -5,9 +5,11 @@ mod routes;
 mod token;
 mod handlers {
     pub mod auth;
+    pub mod weapon;
 }
 mod models{
     pub mod user;
+    pub mod weapon;
 }
 mod middleware;
 
