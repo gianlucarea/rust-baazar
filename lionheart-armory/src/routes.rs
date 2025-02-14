@@ -1,6 +1,6 @@
 use axum::{middleware, routing::{get, post}, Router};
-
-use crate::{handlers::{login_user, register_user}, middleware::auth_middleware};
+use crate::handlers::auth::{login_user, register_user};
+use crate::middleware::auth_middleware;
 
 
 pub fn all_route(database_pool: sqlx::Pool<sqlx::Postgres> ) -> Router {

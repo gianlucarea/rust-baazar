@@ -2,7 +2,7 @@ use jsonwebtoken::{decode, encode, Algorithm, DecodingKey, EncodingKey, Header, 
  use chrono::{Utc, Duration};
 use std::env;
 
-use crate::models::Claims;
+use crate::models::user::Claims;
 
 pub fn generate_token(username: &String) -> Result<String, jsonwebtoken::errors::Error>{
     let secret = env::var("JWT_SECRET_KEY").expect("JWT_SECRET_KEY must be set!");

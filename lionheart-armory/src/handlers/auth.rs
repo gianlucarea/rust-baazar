@@ -6,7 +6,7 @@ use serde_json::json;
 use sqlx::PgPool;
 use chrono::Utc;
 
-use crate::models::{RegisterResponse, User};
+use crate::models::user::{RegisterResponse, User};
 use crate::token::generate_token;
 
 pub async fn register_user(

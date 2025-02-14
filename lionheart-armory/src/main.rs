@@ -2,9 +2,13 @@ use sqlx::postgres::PgPoolOptions;
 use tokio::net::TcpListener;
 
 mod routes;
-mod models;
-mod handlers;
 mod token;
+mod handlers {
+    pub mod auth;
+}
+mod models{
+    pub mod user;
+}
 mod middleware;
 
 #[tokio::main]
