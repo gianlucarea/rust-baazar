@@ -1,4 +1,4 @@
-use axum::{extract::State, http::StatusCode, Json};
+use axum::{extract::{Path, State}, http::StatusCode, Json};
 use serde_json::json;
 use sqlx::PgPool;
 
@@ -46,4 +46,78 @@ pub async fn get_all_weapons(State(pg_pool): State<PgPool>) -> Result<(StatusCod
         StatusCode::OK,
         json!({"success": true, "data": rows}).to_string(),
     ))
+}
+
+pub async fn get_weapon(State(pg_pool): State<PgPool>, Path(weapon_id): Path<i32>) -> Result<(StatusCode,String),(StatusCode,String)>{
+    let rows = sqlx::query_as!(Weapon,"SELECT * FROM weapons WHERE id = $1", weapon_id)
+    .fetch_one(&pg_pool)
+    .await
+    .map_err(|e| {
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            json!({"success": false, "message": e.to_string()}).to_string(),
+        )
+    })?;
+    Ok((
+        StatusCode::OK,
+        json!({"success": true, "data": rows}).to_string(),
+    ))
+}
+
+pub async fn update_weapon(
+    State(pg_pool): State<PgPool>,
+    Path(weapon_id): Path<i32>,
+    Json(weapon): Json<CreateWeapon>
+    ) -> Result<(StatusCode,String),(StatusCode,String)> {
+        sqlx::query!(
+            " 
+            UPDATE weapons SET
+                name = $2,
+                weight = $3, 
+                origin = $4, 
+                first_use_year = $5, 
+                type_id = $6, 
+                material_id = $7
+            WHERE id = $1 ",
+            weapon_id,
+            weapon.name,
+            weapon.weight,
+            weapon.origin,
+            weapon.first_use_year,
+            weapon.type_id,
+            weapon.material_id,
+        )
+        .execute(&pg_pool)
+        .await
+        .map_err(|e| {
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                json!({"success": false, "message": e.to_string()}).to_string(),
+            )
+        })?;
+
+        Ok((
+            StatusCode::OK,
+            json!({"success": true}).to_string(),
+        ))
+}
+
+pub async fn delete_weapon(
+    State(pg_pool): State<PgPool>,Path(weapon_id): Path<i32>)
+    -> Result<(StatusCode,String),(StatusCode,String)> {
+
+        sqlx::query!("DELETE FROM weapons WHERE id = $1", weapon_id)
+        .execute(&pg_pool)
+        .await
+        .map_err(|e| {
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                json!({"success": false, "message": e.to_string()}).to_string(),
+            )
+        })?;
+
+        Ok((
+            StatusCode::OK,
+            json!({"success": true}).to_string(),
+        ))
 }
