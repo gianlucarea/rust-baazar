@@ -12,7 +12,28 @@ pub struct Weapon{
     pub material_id: i32,
 }
 
-#[derive(Deserialize)]
+impl Weapon {
+    pub fn new(
+        id: i32, 
+        name: String,
+        weight: BigDecimal,
+        origin: String,
+        first_use_year: Option<i32>,
+        type_id: i32,
+        material_id: i32
+     ) -> Self {
+        Weapon {
+            id: id,
+            name: name,
+            weight: weight,
+            origin: origin,
+            first_use_year: first_use_year,
+            type_id: type_id,
+            material_id: material_id,
+        }
+    }
+}
+#[derive(Deserialize,Serialize)]
 pub struct CreateWeapon{
     pub name: String,
     pub weight: BigDecimal,

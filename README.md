@@ -26,20 +26,44 @@ This project, Runestone, is a minimal Rust web server built with Axum and Tokio 
 Archimedes MQ is an async Rust IoT data logger using Tokio and MQTT, simulating sensors and storing real-time readings in JSON.
 
 ### [Byzantine Vault 🏛️](./byzantine-vault/)
-ByzantineVault is a secure file storage system. It combines encryption (AES-GCM), JWT authentication, and PostgreSQL-backed secure access control
-| **Method** | **Route**                                             | **Description**                                  |
-|------------|-------------------------------------------------------|--------------------------------------------------|
-| GET        | `/`                                                   | Test route: `"Hello Aldino!"`                    |
-| POST       | `/register`                                           | Register a new user                             |
-| POST       | `/login`                                              | Login and generate JWT                          |
-| POST       | `/auth/{owner_id}/files/`                             | Upload a file                                   |
-| GET        | `/auth/{owner_id}/files/{file_name}/`                 | Download a file                                 |
-| DELETE     | `/auth/{owner_id}/files/{file_name}/`                 | Delete a file                                   |
-| GET        | `/auth/{owner_id}/files/{file_name}/version/{version}/`| Download file by version                           |
-| DELETE     | `/auth/{owner_id}/files/{file_name}/version/{version}/`| Delete file by version                             |
+ByzantineVault is a **Rust-based** secure file storage system using:
+- **Axum** for web API handling.
+- **SQLx** for database management.
+- **AES-256-GCM** encryption for data security.
+- **Argon2** for password hashing.
+- **Role-Based Access Control (RBAC)** to manage permissions.
+
+| **Method** | **Route**                                                     | **Description**                                    | **Middleware** |
+|------------|---------------------------------------------------------------|----------------------------------------------------|---------------|
+| GET        | `/`                                                           | Test route: `"Hello Aldino!"`                      | ❌ No        |
+| POST       | `/register`                                                   | Register a new user                               | ❌ No        |
+| POST       | `/login`                                                      | Login and generate JWT                            | ❌ No        |
+| POST       | `/auth/{owner_id}/files/`                                     | Upload a new file                                 | ✅ Yes (auth) |
+| GET        | `/auth/{owner_id}/files/{file_name}/`                         | Download a file                                   | ✅ Yes (auth) |
+| DELETE     | `/auth/{owner_id}/files/{file_name}/`                         | Delete a file                                     | ✅ Yes (auth) |
+| GET        | `/auth/{owner_id}/files/{file_name}/version/{version}/`       | Download a specific version of a file            | ✅ Yes (auth) |
+| DELETE     | `/auth/{owner_id}/files/{file_name}/version/{version}/`       | Delete a specific version of a file              | ✅ Yes (auth) |
 
 ### [Lionheart Armory 🦁](./byzantine-vault/)
-Lionhearth Armory is a secure armory api. JWT authentication, and PostgreSQL-backed secure access control and Redis Cache.
+Lionhearth Armory is a secure armory (Ancient & Mediaval) api. JWT authentication, and PostgreSQL-backed secure access control and Redis Cache.
+Lionhearth Armory is a **Rust-based** secure file storage system using:
+- **Axum** for web API handling.
+- **SQLx** for database management.
+- **Redis** cache data for faster retrieval.
+- **bcrypt** for password hashing.
+- **Role-Based Access Control (RBAC)** to manage permissions.
+
+| **Method** | **Route**                        | **Description**                                  | **Middleware** |
+|------------|----------------------------------|--------------------------------------------------|---------------|
+| GET        | `/auth/`                         | Test route: `"Hello Aldino!"`                    | ✅ Yes   |
+| POST       | `/register`                      | Register a new user                             | ❌ No        |
+| POST       | `/login`                         | Login and generate JWT                          | ❌ No        |
+| GET        | `/weapons`                       | Retrieve all weapons                            | ✅ Yes   |
+| POST       | `/weapons`                       | Create a new weapon                             | ✅ Yes   |
+| GET        | `/weapons/{weapon_id}`           | Retrieve a specific weapon by `weapon_id`       | ✅ Yes        |
+| PATCH      | `/weapons/{weapon_id}`           | Update a weapon by `weapon_id`                  | ✅ Yes       |
+| DELETE     | `/weapons/{weapon_id}`           | Delete a weapon by `weapon_id`                  | ✅ Yes        |
+
 ---
 
 ## **Project Updates**
@@ -50,4 +74,4 @@ As I complete each project, the README will be updated to reflect the latest wor
 
 Thank you for visiting my Rust Bazaar repository! Feel free to browse, learn, and share ideas. I hope this collection inspires others to dive into Rust and explore its potential.
 
-Happy coding with Rust! 🚀
+Happy coding with Rust! 🚀🦀
