@@ -1,5 +1,5 @@
 # Rust Baazar 🦀
-Welcome to my **Rust Bazaar** repository! This space is dedicated entirely to exploring and mastering **Rust**. Over time, I've created **4 projects** in Rust, each aiming to enhance my understanding of the language and its rich ecosystem.
+Welcome to my **Rust Bazaar** repository! This space is dedicated entirely to exploring and mastering **Rust**. Over time, I've created **5 projects** in Rust, each aiming to enhance my understanding of the language and its rich ecosystem.
 
 ## **Repository Goal**
 
